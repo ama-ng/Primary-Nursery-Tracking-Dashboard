@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pariya Academy | Management Dashboard</title>
+    <style>
+        :root { --primary: #065f46; --accent: #10b981; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --danger: #ef4444; --border: #e2e8f0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; }
+        
+        header { background: var(--card); text-align: center; padding: 20px 10px; border-bottom: 5px solid var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .logo-img { width: 100px; height: auto; border-radius: 50%; margin-bottom: 10px; }
+        h1 { margin: 5px 0; color: var(--primary); font-size: 1.4rem; text-transform: uppercase; }
+        .motto { font-style: italic; color: #64748b; font-size: 0.9rem; font-weight: 600; }
+        
+        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
+        
+        /* Stats Summary Row */
+        .stats-summary { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .stat-box { background: white; padding: 15px; border-radius: 10px; flex: 1; min-width: 200px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid var(--accent); }
+        .stat-box.low { border-top-color: var(--danger); }
+        .stat-label { font-size: 0.8rem; color: #64748b; font-weight: bold; text-transform: uppercase; }
+        .stat-value { font-size: 1.1rem; font-weight: 800; color: var(--text); margin-top: 5px; }
+
+        .status-bar { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 25px; border-radius: 15px; border-left: 8px solid var(--primary); cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        
+        #detail-view { display: none; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: center; }
+        th { background: #f1f5f9; font-size: 0.75rem; text-transform: uppercase; }
+        td:nth-child(1) { width: 40px; font-weight: bold; color: #94a3b8; }
+        td:nth-child(2) { text-align: left; font-weight: bold; }
+        
+        .btn { padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+        .btn-refresh { background: var(--primary); color: white; }
+        .btn-back { background: #64748b; color: white; }
+        .btn-copy { background: #f59e0b; color: black; }
+        
+        .badge { padding: 5px 10px; border-radius: 5px; font-size: 10px; font-weight: 800; }
+        .done { background: #dcfce7; color: #166534; }
+        .wait { background: #fee2e2; color: #991b1b; }
+        
+        #loader { text-align: center; padding: 30px; font-weight: bold; color: var(--primary); display: none; }
+        footer { text-align: center; padding: 40px; color: #94a3b8; font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <img src="logo.png" alt="🏫" class="logo-img" onerror="this.src='https://via.placeholder.com/100?text=LOGO'">
+    <h1>PARIYA ACADEMY PRIMARY & NURSERY MANAGEMENT DASHBOARD</h1>
+    <div class="motto">Motto: Do Not Be Sad</div>
+</header>
+
+<div class="container">
+    <div id="home-elements">
+        <div class="stats-summary" id="stats-summary">
+            </div>
+
+        <div class="status-bar">
+            <span id="sync-text" style="font-weight:bold; color:#64748b;">Ready</span>
+            <button class="btn btn-refresh" onclick="loadAllData()">↻ Sync All Classes</button>
+        </div>
+
+        <div id="loader">📡 Synchronizing Sheets...</div>
+        <div id="home-view" class="class-grid"></div>
+    </div>
+
+    <div id="detail-view">
+        <div class="detail-header">
+            <button class="btn btn-back" onclick="showHome()">← Back</button>
+            <h2 id="class-title" style="margin:0; color:var(--primary);"></h2>
+            <button class="btn btn-copy" id="copy-btn-dynamic">📋 Copy Class Report</button>
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>S/N</th>
+                        <th>Subject</th>
+                        <th>1st CA</th>
+                        <th>2nd CA</th>
+                        <th>Exam</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<footer>Copyright ©️2026 Arabo Modibbo, All Rights Reserved!</footer>
+
+<script>
+    const CONFIG_LINKS = {
+        "Nursery 1": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUCzyVQz4AYsS-PmAUZDqUj2LvbUMRpdBZk-4UDfza195CzsBxp0O-oWGWYYKUPw/pub?gid=621314920&single=true&output=csv",
+        "Nursery 2": "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpALxlxwfkZuIdQwVskW4RMaiHlEPCnuS9zZ8fQpI-3QDId5Qbv6-6E9qmgKT3A/pub?gid=621314920&single=true&output=csv",
+        "Primary 1":  "https://docs.google.com/spreadsheets/d/e/2PACX-1vT49ltNlKXgCs5-OlwP8vaoObY4O01AyHjHxdkvbROJDX58yEQd2xjxb7AeY8OHJw/pub?gid=621314920&single=true&output=csv",
+        "Primary 2":  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpALxlxwfkZuIdQwVskW4RMaiHlEPCnuS9zZ8fQpI-3QDId5Qbv6-6E9qmgKT3A/pub?gid=621314920&single=true&output=csv",
+        "Primary 3":  "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7MfaLhkJMks6l25Ys4n_XohaxuBpH_0VS0O4CYPU1qj7CG27L1pQ2yPDu_QBVZw/pub?gid=621314920&single=true&output=csv",
+        "Primary 4":  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXCANqaiReTcJoq3R1DT9V7KYTGxNirO9TRQX3psMLe2Jrwt4QbGrfdMoRqIQTvw/pub?gid=621314920&single=true&output=csv",
+        "Primary 5":  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSPyVp5PrHjKQjvqt0RaUNrfkOSWsXlaC4H6Edt1JG12ps6_YunlO-gz9ONLnqUfQ/pub?gid=621314920&single=true&output=csv"
+    };
+
+    let MASTER_DATA = {};
+
+    async function loadAllData() {
+        const loader = document.getElementById('loader');
+        const homeView = document.getElementById('home-view');
+        loader.style.display = 'block';
+        homeView.style.opacity = '0.3';
+
+        for (const [name, url] of Object.entries(CONFIG_LINKS)) {
+            try {
+                const response = await fetch(url + "&t=" + Date.now());
+                const csv = await response.text();
+                const lines = csv.split('\n').map(l => l.split(','));
+                const headers = lines[0];
+                const dataRows = lines.slice(1);
+                const subjects = {};
+                let total = 0, done = 0;
+
+                headers.forEach((header, idx) => {
+                    const h = header.toUpperCase().trim();
+                    let type = h.includes("CA1") ? "CA1" : h.includes("CA2") ? "CA2" : h.includes("EXAM") ? "Exam" : "";
+                    if (type) {
+                        const sName = header.split('_')[0].trim();
+                        if (!subjects[sName]) subjects[sName] = { CA1:null, CA2:null, Exam:null };
+                        let filled = false;
+                        for (let r=0; r<dataRows.length; r++) {
+                            const val = dataRows[r][idx]?.trim();
+                            if (val && val!=="0" && val!=="-") { filled = true; break; }
+                        }
+                        subjects[sName][type] = filled;
+                        total++; if (filled) done++;
+                    }
+                });
+                MASTER_DATA[name] = { total, done, subjects };
+            } catch (err) { console.error(err); }
+        }
+        loader.style.display = 'none';
+        homeView.style.opacity = '1';
+        document.getElementById('sync-text').innerText = "Last Sync: " + new Date().toLocaleTimeString();
+        renderHome();
+    }
+
+    function renderHome() {
+        const view = document.getElementById('home-view');
+        const stats = document.getElementById('stats-summary');
+        view.innerHTML = "";
+        
+        let leadClass = { name: "N/A", pct: -1 };
+        let slowClass = { name: "N/A", pct: 101 };
+
+        for (const [name, data] of Object.entries(MASTER_DATA)) {
+            const pct = data.total > 0 ? Math.round((data.done / data.total) * 100) : 0;
+            if (pct > leadClass.pct) leadClass = { name, pct };
+            if (pct < slowClass.pct) slowClass = { name, pct };
+
+            view.innerHTML += `
+                <div class="card" onclick="showDetails('${name}')">
+                    <h3 style="margin:0 0 10px 0; color:var(--primary)">${name}</h3>
+                    <div style="font-weight:bold; font-size: 0.9rem;">
+                        <span style="color:var(--accent)">${pct}% Done</span> | 
+                        <span style="color:var(--danger)">${100-pct}% Wait</span>
+                    </div>
+                </div>`;
+        }
+
+        stats.innerHTML = `
+            <div class="stat-box">
+                <div class="stat-label">Leading Class</div>
+                <div class="stat-value">${leadClass.name} (${leadClass.pct}%)</div>
+            </div>
+            <div class="stat-box low">
+                <div class="stat-label">Needs Attention</div>
+                <div class="stat-value">${slowClass.name} (${slowClass.pct}%)</div>
+            </div>
+        `;
+    }
+
+    function showDetails(name) {
+        document.getElementById('home-elements').style.display = 'none';
+        document.getElementById('detail-view').style.display = 'block';
+        document.getElementById('class-title').innerText = name;
+        
+        const btn = document.getElementById('copy-btn-dynamic');
+        btn.onclick = () => copySingleClassReport(name);
+
+        const body = document.getElementById('table-body');
+        body.innerHTML = "";
+        const subs = MASTER_DATA[name].subjects;
+        let i = 1;
+        for (const s in subs) {
+            body.innerHTML += `
+                <tr>
+                    <td>${i++}</td>
+                    <td>${s}</td>
+                    <td>${badge(subs[s].CA1)}</td>
+                    <td>${badge(subs[s].CA2)}</td>
+                    <td>${badge(subs[s].Exam)}</td>
+                </tr>`;
+        }
+    }
+
+    function badge(v) { 
+        if (v === null) return "—";
+        return v ? `<span class="badge done">DONE</span>` : `<span class="badge wait">WAIT</span>`;
+    }
+
+    function showHome() {
+        document.getElementById('detail-view').style.display = 'none';
+        document.getElementById('home-elements').style.display = 'block';
+    }
+
+    function copySingleClassReport(className) {
+        const data = MASTER_DATA[className];
+        let msg = `*PARIYA ACADEMY - ${className.toUpperCase()} PENDING REPORT*\n`;
+        let pending = [];
+        for (const s in data.subjects) {
+            let m = [];
+            if (!data.subjects[s].CA1) m.push("1st CA");
+            if (!data.subjects[s].CA2) m.push("2nd CA");
+            if (!data.subjects[s].Exam) m.push("Exam");
+            if (m.length > 0) pending.push(`${s}: (${m.join(', ')})`);
+        }
+        
+        if (pending.length === 0) {
+            msg += "Excellent! All records are 100% complete.";
+        } else {
+            msg += "The following records are still missing:\n\n- " + pending.join('\n- ');
+        }
+
+        navigator.clipboard.writeText(msg).then(() => alert(`${className} report copied to clipboard!`));
+    }
+
+    window.onload = loadAllData;
+</script>
+</body>
+</html>
